@@ -2,6 +2,10 @@
 
 byte mem[MEM_SIZE];
 
+byte cache[(CACHE_WORD_SIZE + HEADER_SIZE) * CACHE_WORD_COUNT];
+int hit[CACHE_WORD_COUNT];
+bool modified[CACHE_WORD_COUNT];
+
 ushort make_header(ushort size, bool busy) {
     if (size > MEM_SIZE) {
         printf("Error in make_header: too big size.\n");
@@ -41,13 +45,22 @@ block_info read_block_info(ushort address) {
 }
 
 void mem_dump() {
-   printf("MEM_DUMP START");
-   ushort i = 0;
-   for (i = 0; i < MEM_SIZE; i++) {
-       if (i % 16 == 0) printf("\n");
-       printf("%#02x\t", mem[i]);
-   }
-   printf("\nMEM_DUMP END\n");
+    printf("MEM_DUMP START");
+    ushort i = 0;
+    for (i = 0; i < MEM_SIZE; i++) {
+        if (i % 16 == 0) printf("\n");
+        printf("%#02x\t", mem[i]);
+    }
+    printf("\nMEM_DUMP END\n");
+    
+    printf("CACHE\n");
+    for (int i = 0; i < CACHE_WORD_COUNT; i++) {
+        for (int j = 0; j < CACHE_WORD_SIZE + HEADER_SIZE; j++) {
+            printf("%#02x\t", cache[i * (CACHE_WORD_SIZE + HEADER_SIZE) + j]);
+        }
+        printf(" : %d hits\n", hit[i]);
+    }
+    printf("END OF CACHE\n");
 }
 
 void fill_block(block_info block, byte value) {
@@ -181,6 +194,22 @@ ushort mem_realloc(ushort address, ushort new_size) {
     return current.address;
 }
 
+void cache_init() {
+    for (int i = 0; i < CACHE_WORD_COUNT; i++) {
+        cache[i * (CACHE_WORD_SIZE + HEADER_SIZE)] = 0;
+        cache[i * (CACHE_WORD_SIZE + HEADER_SIZE) + 1] = 0;
+        hit[i] = 0;
+        modified[i] = false;
+    }
+    
+//    for (int i = 2; i < CACHE_SIZE; i++) {
+//        cache[i] = mem[i];
+//    }
+//    ushort address = 2;
+//    byte* p = (byte*)&address;
+//    cache[1] = *p;
+//    cache[0] = *(p + 1);
+}
 
 void mem_init() {
     block_info info;
@@ -189,13 +218,90 @@ void mem_init() {
     info.busy = false;
 
     mem_set_block(info);
+    cache_init();
 }
 
 byte mem_read(ushort address) {
-    return mem[address];
+    // looking in the cache
+    for (int i = 0; i < CACHE_WORD_COUNT; i++) {
+        int word_index = i * (CACHE_WORD_SIZE + HEADER_SIZE);
+        
+        ushort cache_address = (ushort)cache[word_index];
+        cache_address <<= 8;
+        cache_address |= (ushort)cache[word_index + 1];
+       
+      //  printf("CACHE_ADDRESS BEFORE = %d\n", cache_address);
+
+        if (cache_address == 0) {
+            // cache is empty, let's fix this
+            byte* p = (byte*)&address;
+            cache[word_index + 1] = *p;
+            cache[word_index] = *(p + 1);
+            hit[i] = 1;
+            for (int j = address; j < address + CACHE_WORD_SIZE && j < MEM_SIZE; j++) {
+                cache[word_index + HEADER_SIZE + (j - address)] = mem[j];
+            }
+            return cache[word_index + HEADER_SIZE];
+        }
+        
+        if (address >= cache_address && address < cache_address + CACHE_WORD_SIZE) {
+            // HIT !
+            hit[i]++;
+            return cache[word_index + HEADER_SIZE + (address - cache_address)];
+        }
+    }
+   // printf("CACHE IS FULL\n");
+    // looks like we didn't hit and cache is full
+    // let's clean a little bit
+    int min = hit[0];
+    int min_i = 0;
+    for (int j = 1; j < CACHE_WORD_COUNT; j++) {
+        if (hit[j] < min) {
+            min = hit[j];
+            min_i = j;
+        }
+    }
+
+    hit[min_i] = 1;
+    int word_index = min_i * (CACHE_WORD_SIZE + HEADER_SIZE);
+   
+    // write back!
+    if (modified[min_i]) {
+        for (int i = address; i < CACHE_WORD_SIZE && i < MEM_SIZE; i++) {
+            mem[i] = cache[word_index + HEADER_SIZE + (i - address)];
+        }
+        modified[min_i] = false;
+    }
+
+    // filling up cache
+    byte* p = (byte*)&address;
+    cache[word_index + 1] = *p;
+    cache[word_index] = *(p + 1);
+    for (int j = address; j < address + CACHE_WORD_SIZE && j < MEM_SIZE; j++) {
+        cache[word_index + HEADER_SIZE + (j - address)] = mem[j];
+    }
+    
+    return cache[word_index + HEADER_SIZE];
 }
 
 void mem_write(ushort address, byte value) {
+    // looking in the cache
+    for (int i = 0; i < CACHE_WORD_COUNT; i++) {
+        int word_index = i * (CACHE_WORD_SIZE + HEADER_SIZE);
+        
+        ushort cache_address = (ushort)cache[word_index];
+        cache_address <<= 8;
+        cache_address |= (ushort)cache[word_index + 1];
+
+        if (address >= cache_address && address < cache_address + CACHE_WORD_SIZE) {
+            // HIT !
+            hit[i]++;
+            modified[i] = true;
+            cache[word_index + HEADER_SIZE + (address - cache_address)] = value;
+            return;
+        }
+    }
+    
     mem[address] = value;
 }
 

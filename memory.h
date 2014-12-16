@@ -1,7 +1,9 @@
 #include <stdio.h>
-#define MEM_SIZE 128 // max is 2^15 - 2 = 0x7FFF
+#define MEM_SIZE 512 // max is 2^15 - 2 = 0x7FFE
 #define HEADER_SIZE 2
 #define THRESHOLD (HEADER_SIZE + 1)  // minimum memory size to locate a block
+#define CACHE_WORD_SIZE 8 
+#define CACHE_WORD_COUNT 4
 
 typedef unsigned char byte;
 typedef unsigned short ushort;
@@ -10,8 +12,6 @@ typedef struct {
     ushort size;
     bool busy;
 } block_info;
-
-
 
 block_info read_block_info(ushort address);
 void mem_dump(); 
