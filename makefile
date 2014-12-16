@@ -1,2 +1,2 @@
 all:
-	g++ main.cpp --std=c++0x
+	g++ main.cpp ram.cpp --std=c++0x
