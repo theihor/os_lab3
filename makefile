@@ -1,2 +1,2 @@
 all:
-	g++ main.cpp memory.cpp Process.cpp --std=c++0x
+	g++ main.cpp memory.cpp Process.cpp Scheduler.cpp --std=c++0x

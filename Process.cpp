@@ -5,25 +5,27 @@
 
 using std::cout;
 using std::endl;
+using std::hex;
+using std::dec;
 
-Process::Process(ushort _address, ushort _size) {
+Process::Process(byte _id, ushort _address, ushort _size) {
     this->size = _size;
     this->loc = _address;
-    this->id = next_id++;
-    this->log = false;
+    this->id = _id;
+    this->log = true;
     fill();
 }
 
 byte Process::read(ushort virtual_address) { // read from virtual address
     ushort address = this->loc + virtual_address + HEADER_SIZE;
     byte val = mem_read(address);
-    if (this->log) cout << "Process " << id << " reads at " << virtual_address << " -> " << address << ": " << (int)val << endl;
+    if (this->log) cout << dec << "Process " << (int)id << " reads at " << virtual_address << " -> " << address << ": " << hex << (int)val << endl;
     return val;
 }    
 
 void Process::write(ushort virtual_address, byte value) { // write value in virtual address
     ushort address = this->loc + virtual_address + HEADER_SIZE;
-    if (this->log) cout << "Process " << id << " writes at " << virtual_address << " -> " << address << ": " << (int)value << endl;
+    if (this->log) cout << dec << "Process " << (int)id << " writes at " << virtual_address << " -> " << address << ": " << hex << (int)value << endl;
     mem_write(address, value);
 }
 
@@ -36,12 +38,15 @@ void Process::do_something(byte n) { // read or write something n times
        } else {
            write(rand() % this->size, val);
        }
+    mem_dump();
     }
 }
 
 void Process::fill() {
     srand(time(NULL)); 
+    log = false;
     for (int i = 0; i < this->size; i++) {
         write(i, rand() % 256);
     }
+    log = true;
 }
