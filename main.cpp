@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <time.h>
 #include <unistd.h>
+#include <list>
 
 #define RAM_SIZE 1024 // should fit 'int' 
 #define CACHE_SIZE 64 // should be <= RAM_SIZE / 10
@@ -72,10 +73,6 @@ typedef struct request {
     int amount;
     int id;
 } request;
-
-
-void terminal_process(int terminal_id, int count_of_clients) 
-
 
 int main ()
 {
