@@ -191,4 +191,11 @@ void mem_init() {
     mem_set_block(info);
 }
 
+byte mem_read(ushort address) {
+    return mem[address];
+}
+
+void mem_write(ushort address, byte value) {
+    mem[address] = value;
+}
 

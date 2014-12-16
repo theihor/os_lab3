@@ -22,3 +22,5 @@ void mem_free(ushort address);
 ushort mem_realloc(ushort address, ushort new_size); 
 void mem_init(); 
 
+byte mem_read(ushort address);
+void mem_write(ushort address, byte value);
